@@ -1,16 +1,31 @@
 # see README file for usage details and other information
 
 # global variables:
+#    cr: Enter key 
+#    vimserver:  Vim servername 
 #    dbgdispon:  boolean indicating whether 
 #       arguments and locals are to be displayed in R window, every time
 #       debug() pauses execution of the program being debugged
 #    dbgsinklines:  most-recently read in lines from dbgsink
-#    vimserver:  Vim servername 
 
 # arguments: see globals above
-dbgeditstart <- function(vimserver=168) {
+dbgeditstart <- function(vimserver=VIM) {
+
+   cr <- ''
+   vimserver <<- vimserver  # global
+
+   # set up screen
+   startGNUscreen <- function(termType='xterm',nLines=50) 
+   {
+      cmd <- sprintf('system("%s -geometry 80x%s -e \'screen -S Rdebug\' &")',
+         termType,nLines)
+      evalr(cmd)
+      # no need to send blank; the spiit command will be fine
+      # split by horizontal line
+
+   }
+
    # make sure editor server ready; send innocuous command to editor as test
-   vimserver <<- vimserver
    # send ESC
    tryvim <- paste("vim --remote-send \033 --servername ",vimserver,sep="")
    if (system(tryvim) != 0)
@@ -156,3 +171,10 @@ dbgeditclose <- function() {
    sink()  # don't record output anymore
    unlink("dbgsink")  # remove the record file
 }
+
+# execute the given R expression
+evalr <- function(toexec) {
+   eval(parse(text=toexec),parent.frame())
+}
+
+
