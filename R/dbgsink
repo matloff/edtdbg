@@ -1,0 +1,8 @@
+[1] "VIM"
+[1] "debug(f)\r"
+[1] "screen -S tryout -p 2 -X stuff debug(f)\r"
+[1] "screen -S tryout -p 2 -X stuff debug(f)\r"
+[1] "screen -S tryout -p 2 -X stuff n\r"
+[1] "screen -S tryout -p 2 -X stuff f(5,2)\r"
+[1] "screen -S tryout -p 2 -X stuff 'f(5,2)\r'"
+
