@@ -1,29 +1,40 @@
 # see README file for usage details and other information
 
 # global variables:
+
 #    cr: Enter key 
-#    vimserver:  Vim servername 
-#    dbgdispon:  boolean indicating whether 
+#    vimserver: Vim servername 
+#    srcFile: current source file being debugged
+#    GNUscreenName: name of window 0 
+
+
+#    dbgdispon: boolean indicating whether 
 #       arguments and locals are to be displayed in R window, every time
 #       debug() pauses execution of the program being debugged
-#    dbgsinklines:  most-recently read in lines from dbgsink
+#    dbgsinklines: most-recently read in lines from dbgsink
+
+# GNU screen window name Rdebug
 
 # arguments: see globals above
-dbgeditstart <- function(vimserver=VIM) {
+letsStart <- function(srcFile,termType='xterm',nLines=50,
+   vimserver=VIM) 
+{
 
-   cr <- ''
-   vimserver <<- vimserver  # global
+   cr <<- ''
+   # set globals
+   srcFile <<- srcFile
+   GNUscreenName <<- 'Rdebug'
+   vimserver <<- vimserver  
 
-   # set up screen
-   startGNUscreen <- function(termType='xterm',nLines=50) 
-   {
-      cmd <- sprintf('system("%s -geometry 80x%s -e \'screen -S Rdebug\' &")',
-         termType,nLines)
-      evalr(cmd)
-      # no need to send blank; the spiit command will be fine
-      # split by horizontal line
+   # start GNU screen
+   cmd <- sprintf("%s -geometry 80x%s -e \'screen -S Rdebug split\' &",
+      termType,nLines)
+   system(cmd)
 
-   }
+
+   # split into upper, lower panes
+   sendToGNUscreen('S',0)
+
 
    # make sure editor server ready; send innocuous command to editor as test
    # send ESC
@@ -35,6 +46,13 @@ dbgeditstart <- function(vimserver=VIM) {
    # dbgsink; see help page for sink()
    sink("dbgsink",split=T)
    dbgdispon <<- FALSE
+}
+
+sendToGNUscreen <- function(scrCmd,paneNum) 
+{
+   cmd <- sprintf('screen -S %s -p %s -X stuff %s ', 
+      GNUscreenName,paneNum,scrCmd)
+   system(cmd)
 }
 
 # invoked from editor, after the latter writes an 'n' or 'c' command to
