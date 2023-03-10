@@ -5,7 +5,7 @@
 #    cr: Enter key 
 #    vimserver: Vim servername 
 #    srcFile: current source file being debugged
-#    GNUscreenName: name of window 0 
+#    tmuxName: name of window 0 
 
 
 #    dbgdispon: boolean indicating whether 
@@ -23,17 +23,22 @@ letsStart <- function(srcFile,termType='xterm',nLines=50,
    cr <<- ''
    # set globals
    srcFile <<- srcFile
-   GNUscreenName <<- 'Rdebug'
+   tmuxName <<- 'Rdebug'
    vimserver <<- vimserver  
 
-   # start GNU screen
-   cmd <- sprintf("%s -geometry 80x%s -e \'screen -S Rdebug split\' &",
+   # start tmux 
+   cmd <- sprintf("%s -geometry 80x%s -e \'tmux new -s abc\' &",
       termType,nLines)
    system(cmd)
 
-
    # split into upper, lower panes
-   sendToGNUscreen('S',0)
+   system('tmux split -t abc')
+
+   # start Vim
+   system('tmux select-pane -t abc.0')
+   system('tmux send-keys -t abc "vim --servername VIM" C-m') 
+
+
 
 
    # make sure editor server ready; send innocuous command to editor as test
@@ -48,10 +53,11 @@ letsStart <- function(srcFile,termType='xterm',nLines=50,
    dbgdispon <<- FALSE
 }
 
-sendToGNUscreen <- function(scrCmd,paneNum) 
+# sends to pane of current focus
+sendTotmux <- function(tmuxCmd) 
 {
-   cmd <- sprintf('screen -S %s -p %s -X stuff %s ', 
-      GNUscreenName,paneNum,scrCmd)
+   cmd <- sprintf('tmux send-keys -t %s %s C-m', 
+      tmuxName,tmuxCmd)
    system(cmd)
 }
 
