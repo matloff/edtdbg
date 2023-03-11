@@ -5,7 +5,7 @@
 #    cr: Enter key 
 #    vimserver: Vim servername 
 #    srcFile: current source file being debugged
-#    tmuxName: name of window 0 
+#    tmuxName: name of original tmux window 
 
 
 #    dbgdispon: boolean indicating whether 
@@ -16,36 +16,31 @@
 # GNU screen window name Rdebug
 
 # arguments: see globals above
-letsStart <- function(srcFile,termType='xterm',nLines=50,
-   vimserver=VIM) 
+letsStart <- function(srcFile,termType='xterm',nLines=50)
 {
 
    cr <<- ''
    # set globals
    srcFile <<- srcFile
    tmuxName <<- 'Rdebug'
-   vimserver <<- vimserver  
 
    # start tmux 
-   cmd <- sprintf("%s -geometry 80x%s -e \'tmux new -s abc\' &",
-      termType,nLines)
+   cmd <- sprintf("%s -geometry 80x%s -e \'tmux new -s %s\' &",
+      termType,nLines,tmuxName)
    system(cmd)
 
    # split into upper, lower panes
-   system('tmux split -t abc')
+   system(sprintf('tmux split -t %s',tmuxName))
 
    # start Vim
-   system('tmux select-pane -t abc.0')
-   system('tmux send-keys -t abc "vim --servername VIM" C-m') 
+   focusVim()
+   scmd <- sprintf('tmux send-keys -t %s "vim --servername VIM %s" C-m',
+      tmuxName,srcFile)
+   system(scmd)
 
 
 
 
-   # make sure editor server ready; send innocuous command to editor as test
-   # send ESC
-   tryvim <- paste("vim --remote-send \033 --servername ",vimserver,sep="")
-   if (system(tryvim) != 0)
-      stop("no Vim server")
    # the following will arrange for a copy of most output (including
    # what we need) in the current R session to be recorded in the file
    # dbgsink; see help page for sink()
@@ -59,6 +54,11 @@ sendTotmux <- function(tmuxCmd)
    cmd <- sprintf('tmux send-keys -t %s %s C-m', 
       tmuxName,tmuxCmd)
    system(cmd)
+}
+
+focusVim <- function() 
+{
+   system(sprintf('tmux select-pane -t %s.0',tmuxName))
 }
 
 # invoked from editor, after the latter writes an 'n' or 'c' command to
