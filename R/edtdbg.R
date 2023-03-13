@@ -19,7 +19,6 @@
 letsStart <- function(srcFile,termType='xterm',nLines=50)
 {
 
-   cr <<- ''
    # set globals
    srcFile <<- srcFile
    tmuxName <<- 'Rdebug'
@@ -33,13 +32,19 @@ letsStart <- function(srcFile,termType='xterm',nLines=50)
    system(sprintf('tmux split -t %s',tmuxName))
 
    # start Vim
-   focusVim()
+   focusVimPane()
    scmd <- sprintf('tmux send-keys -t %s "vim --servername VIM %s" C-m',
       tmuxName,srcFile)
    system(scmd)
 
-
-
+   # start R and read source file
+   focusRPane()
+   scmd <- sprintf('tmux send-keys -t %s R C-m',
+      tmuxName)
+   system(scmd)
+   scmd <- sprintf('tmux send-keys -t %s "source(\'%s)\'" C-m',
+      tmuxName,srcFile)
+   system(scmd)
 
    # the following will arrange for a copy of most output (including
    # what we need) in the current R session to be recorded in the file
@@ -47,6 +52,17 @@ letsStart <- function(srcFile,termType='xterm',nLines=50)
    sink("dbgsink",split=T)
    dbgdispon <<- FALSE
 }
+
+########  quick tests  #########
+letsStart('u.R')
+## make this a ftn
+cmd <- sprintf('tmux send-keys -t %s "source(\'%s)\'" C-m',
+      tmuxName,srcFile)
+system(scmd)
+## 
+dbgFtn('g')
+################################
+
 
 # sends to pane of current focus
 sendTotmux <- function(tmuxCmd) 
@@ -56,9 +72,26 @@ sendTotmux <- function(tmuxCmd)
    system(cmd)
 }
 
-focusVim <- function() 
+focusVimPane <- function() 
 {
-   system(sprintf('tmux select-pane -t %s.0',tmuxName))
+   scmd <- sprintf('tmux select-pane -t %s.0',tmuxName)
+   system(scmd)
+}
+
+focusRPane <- function() 
+{
+   scmd <- sprintf('tmux select-pane -t %s.1',tmuxName)
+   system(scmd)
+}
+
+# start debug of function f
+dbgFtn <- function(fName) 
+{
+   focusRPane()
+   scmd <- sprintf('tmux send-keys -t %s "debug(%s)" C-m',
+      tmuxName,fName)
+   system(scmd)
+
 }
 
 # invoked from editor, after the latter writes an 'n' or 'c' command to
