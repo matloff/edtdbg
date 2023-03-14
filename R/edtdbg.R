@@ -19,6 +19,11 @@
 letsStart <- function(srcFile,termType='xterm',nLines=50)
 {
 
+   # make sure no other tmux running (for now, even under a different
+   # name)
+   chk <- system('tmux ls',intern=T)
+   if (length(chk) != 0) stop('tmux server already running')
+
    # set globals
    srcFile <<- srcFile
    tmuxName <<- 'Rdebug'
@@ -27,6 +32,7 @@ letsStart <- function(srcFile,termType='xterm',nLines=50)
    cmd <- sprintf("%s -geometry 80x%s -e \'tmux new -s %s\' &",
       termType,nLines,tmuxName)
    system(cmd)
+   Sys.sleep(1)
 
    # split into upper, lower panes
    system(sprintf('tmux split -t %s',tmuxName))
@@ -42,9 +48,7 @@ letsStart <- function(srcFile,termType='xterm',nLines=50)
    scmd <- sprintf('tmux send-keys -t %s R C-m',
       tmuxName)
    system(scmd)
-   scmd <- sprintf('tmux send-keys -t %s "source(\'%s)\'" C-m',
-      tmuxName,srcFile)
-   system(scmd)
+   dbgReadSrcFile()
 
    # the following will arrange for a copy of most output (including
    # what we need) in the current R session to be recorded in the file
@@ -54,13 +58,13 @@ letsStart <- function(srcFile,termType='xterm',nLines=50)
 }
 
 ########  quick tests  #########
-letsStart('u.R')
+# letsStart('u.R')
 ## make this a ftn
-cmd <- sprintf('tmux send-keys -t %s "source(\'%s)\'" C-m',
-      tmuxName,srcFile)
-system(scmd)
+# cmd <- sprintf('tmux send-keys -t %s "source(\'%s)\'" C-m',
+#       tmuxName,srcFile)
+# system(scmd)
 ## 
-dbgFtn('g')
+# dbgFtn('g')
 ################################
 
 
@@ -91,8 +95,16 @@ dbgFtn <- function(fName)
    scmd <- sprintf('tmux send-keys -t %s "debug(%s)" C-m',
       tmuxName,fName)
    system(scmd)
-
 }
+
+dbgReadSrcFile <- function() 
+{
+   scmd <- sprintf('tmux send-keys -t %s "source(\'%s\')" C-m',
+         tmuxName,srcFile)
+   system(scmd)
+}
+
+
 
 # invoked from editor, after the latter writes an 'n' or 'c' command to
 # debug()
