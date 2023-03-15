@@ -59,17 +59,12 @@ letsStart <- function(srcFile,termType='xterm',nLines=50)
 
 ########  quick tests  #########
 # letsStart('u.R')
-## make this a ftn
-# cmd <- sprintf('tmux send-keys -t %s "source(\'%s)\'" C-m',
-#       tmuxName,srcFile)
-# system(scmd)
-## 
 # dbgFtn('g')
 ################################
 
 
 # sends to pane of current focus
-sendTotmux <- function(tmuxCmd) 
+sendTo_tmux <- function(tmuxCmd) 
 {
    cmd <- sprintf('tmux send-keys -t %s %s C-m', 
       tmuxName,tmuxCmd)
@@ -104,6 +99,29 @@ dbgReadSrcFile <- function()
    system(scmd)
 }
 
+vimGoToLine <- function(lineNum) 
+{
+   focusVimPane()
+   scmd <- sprintf('tmux send-keys -t %s "%sG"',
+         tmuxName,lineNum)
+   system(scmd)
+
+}
+
+vimUpdateCursor <- function() 
+{
+   i <- dbgfindline("debug at")
+   debugline <- dbgsinklines[i]
+   # extract line number, buffer name
+   linenumstart <- regexpr("#",debugline) + 1
+   ## buffname <- substr(debugline,10,linenumstart-2)
+   colon <- regexpr(":",debugline)
+   linenum <- substr(debugline,linenumstart,colon-1)
+   ## dbggotoline(linenum,buffname)
+   vimGoToLine(linenum)
+   if (dbgdispon) dbgdisp()
+
+}
 
 
 # invoked from editor, after the latter writes an 'n' or 'c' command to
@@ -181,15 +199,17 @@ dbgdispglb <- function() {
    dbgdisplsenv(sys.nframe()+1)
 }
 
+# closer, but still needs work
 dbgdisplsenv <- function(levelup) {
-      vars <- ls(envir=parent.frame(n=levelup))
-      for (vr in vars) {
-         vrg <- get(vr,pos=parent.frame(n=levelup))
-         if (!is.function(vrg) && !identical(vrg,dbgsinklines)) {
-            cat(vr,":\n",sep="")
-            print(vrg)
-         }
+   vars <- ls(envir=parent.frame(n=levelup))
+   for (vrg in vars) {
+      ## if (!is.function(vrg) && !identical(vrg,dbgsinklines)) {
+      if (!is.function(vrg) && !inherits(vrg,'ksr')) {
+         vrgVal <- get(vrg,pos=parent.frame(n=levelup))
+         toPrint <- sprintf('%s: %s',vrg,vrgVal)
+         print(toPrint)
       }
+   }
 }
 
 # send cursor move command to editor
