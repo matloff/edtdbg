@@ -42,6 +42,10 @@ letsStart <- function(srcFile,termType='xterm',nLines=50)
    scmd <- sprintf('tmux send-keys -t %s "vim --servername VIM %s" C-m',
       tmuxName,srcFile)
    system(scmd)
+   # set cursor line highlighting
+   scmd <- sprintf('tmux send-keys -t %s ":set cursorline" C-m',tmuxName)
+   system(scmd)
+
 
    # start R and read source file
    focusRPane()
