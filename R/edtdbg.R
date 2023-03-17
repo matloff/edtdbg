@@ -1,5 +1,3 @@
-# see README file for usage details and other information
-
 # global variables:
 
 #    cr: Enter key 
@@ -14,6 +12,9 @@
 #    dbgsinklines: most-recently read in lines from dbgsink
 
 # GNU screen window name Rdebug
+
+#############  LOTS OF DUPLICATE CODE INVOLVING  ##################
+#############  tmux OPS; FIX LATER, A BIT TRICKY ##################
 
 # arguments: see globals above
 letsStart <- function(srcFile,termType='xterm',nLines=50)
@@ -54,16 +55,16 @@ letsStart <- function(srcFile,termType='xterm',nLines=50)
    system(scmd)
    dbgReadSrcFile()
 
-   # the following will arrange for a copy of most output (including
-   # what we need) in the current R session to be recorded in the file
-   # dbgsink; see help page for sink()
-   sink("dbgsink",split=T)
-   dbgdispon <<- FALSE
+   # ksREPL functions will be used here for quick appreviations, in ks.R
+   ksAbbrev('n','dbgNext()')
+   ksAbbrev('s','dbgStep()')
 }
 
 ########  quick tests  #########
 # letsStart('u.R')
-# dbgFtn('g')
+# dbgFtn('f')
+# sendToR('f(5,2)')
+# hit 'n' a couple of times
 ################################
 
 
@@ -90,6 +91,11 @@ focusRPane <- function()
 # start debug of function f
 dbgFtn <- function(fName) 
 {
+   # the following will arrange for a copy of most output (including
+   # what we need) in the current R session to be recorded in the file
+   # dbgsink; see help page for sink()
+   sendToR('sink(\'"dbgsink"\',split=T)')
+   dbgdispon <<- FALSE
    focusRPane()
    scmd <- sprintf('tmux send-keys -t %s "debug(%s)" C-m',
       tmuxName,fName)
@@ -127,6 +133,34 @@ vimUpdateCursor <- function()
 
 }
 
+# send command to R
+sendToR <- function(rcmd) 
+{
+   focusRPane()
+   rcmd <- paste0('"',rcmd,'"')
+   scmd <- sprintf('tmux send-keys -t %s %s C-m',tmuxName,rcmd)
+   system(scmd)
+   
+}
+
+# browser 'n', 's' commands
+dbgNext <- function() 
+{
+   focusRPane()
+   scmd <- sprintf('tmux send-keys -t %s "n" C-m',tmuxName)
+   system(scmd)
+   vimUpdateCursor() 
+
+}
+dbgStep <- function() 
+{
+   focusRPane()
+   scmd <- sprintf('tmux send-keys -t %s "s" C-m',tmuxName)
+   system(scmd)
+   vimUpdateCursor() 
+}
+
+#########################  not yet updated  ########################
 
 # invoked from editor, after the latter writes an 'n' or 'c' command to
 # debug()
