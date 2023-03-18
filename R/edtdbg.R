@@ -3,6 +3,7 @@
 #    cr: Enter key 
 #    vimserver: Vim servername 
 #    srcFile: current source file being debugged
+#    srcLines: lines of srcFile
 #    tmuxName: name of original tmux window 
 
 
@@ -107,6 +108,7 @@ dbgReadSrcFile <- function()
    scmd <- sprintf('tmux send-keys -t %s "source(\'%s\')" C-m',
          tmuxName,srcFile)
    system(scmd)
+   srcLines <<- readLines(srcFile)
 }
 
 vimGoToLine <- function(lineNum) 
@@ -118,15 +120,24 @@ vimGoToLine <- function(lineNum)
 
 }
 
-vimUpdateCursor <- function() 
+dbgGetCurrLine <- function() 
 {
    i <- dbgfindline("debug at")
    debugline <- dbgsinklines[i]
-   # extract line number, buffer name
    linenumstart <- regexpr("#",debugline) + 1
-   ## buffname <- substr(debugline,10,linenumstart-2)
    colon <- regexpr(":",debugline)
    linenum <- substr(debugline,linenumstart,colon-1)
+   as.numeric(linenum)
+}
+
+vimUpdateCursor <- function() 
+{
+##    i <- dbgfindline("debug at")
+##    debugline <- dbgsinklines[i]
+##    linenumstart <- regexpr("#",debugline) + 1
+##    colon <- regexpr(":",debugline)
+##    linenum <- substr(debugline,linenumstart,colon-1)
+   linenum <- dbgGetCurrLine()
    ## dbggotoline(linenum,buffname)
    vimGoToLine(linenum)
    if (dbgdispon) dbgdisp()
@@ -152,11 +163,27 @@ dbgNext <- function()
    vimUpdateCursor() 
 
 }
+
 dbgStep <- function() 
 {
    focusRPane()
    scmd <- sprintf('tmux send-keys -t %s "s" C-m',tmuxName)
    system(scmd)
+   vimUpdateCursor() 
+}
+
+# entirely new idea, do 'a' ("attempt") instead of 'n'
+
+dbgAttempt <- function() 
+{
+   focusRPane()
+   linenum <- dbgGetCurrLine()
+   rcmd <- sprintf('res <- try(%s)',srcLines[linenum])
+   sendToR(rcmd)
+   sendToR("inherits(err,'try-error')")
+######### need to write result, T or F, to a disk file in R pane, then
+### read it here from the controller; if F, just proceed, but if T, just
+### print result and exit this ftn
    vimUpdateCursor() 
 }
 
@@ -169,7 +196,7 @@ dbgstep <- function() {
    debugline <- dbgsinklines[i]
    # extract line number, buffer name
    linenumstart <- regexpr("#",debugline) + 1
-   buffname <- substr(debugline,10,linenumstart-2)
+   buffname <- substr(debugline,10,linemanumstart-2)
    colon <- regexpr(":",debugline)
    linenum <- substr(debugline,linenumstart,colon-1)
    dbggotoline(linenum,buffname)
