@@ -174,18 +174,27 @@ dbgStep <- function()
 
 # entirely new idea, do 'a' ("attempt") instead of 'n'
 
-dbgAttempt <- function() 
+##### must change need to have user specify varToSave; we sense it here by
+##### checking for '<-' in srcLines[linenum]
+dbgAttempt <- function(varToSave=NULL) 
 {
    focusRPane()
    linenum <- dbgGetCurrLine()
    rcmd <- sprintf('res <- try(%s)',srcLines[linenum])
    sendToR(rcmd)
-   sendToR("inherits(err,'try-error')")
-######### need to write result, T or F, to a disk file in R pane, then
-### read it here from the controller; if F, just proceed, but if T, just
-### print result and exit this ftn
-   vimUpdateCursor() 
+   sendToR("inherits(res,'try-error')")
+   dbs <- readLines('dbgsink')
+   if (dbs[length(dbs)] == '[1] TRUE') {
+      print('exception encountered; note you are still in the browser')
+   } else {
+      # if varToSave is assigned to, need to avoid it, say, being
+      # incremented twice, due to re-executing the statement
+      dbgNext()
+      rcmd <- paste0(varToSave,' <- res')
+      sendToR(rcmd)
+   }
 }
+
 
 #########################  not yet updated  ########################
 
