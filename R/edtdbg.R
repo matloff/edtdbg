@@ -47,6 +47,9 @@ letsStart <- function(srcFile,termType='xterm',nLines=50)
    # set cursor line highlighting
    scmd <- sprintf('tmux send-keys -t %s ":set cursorline" C-m',tmuxName)
    system(scmd)
+   # set display of line numbers
+   scmd <- sprintf('tmux send-keys -t %s ":set number" C-m',tmuxName)
+   system(scmd)
 
 
    # start R and read source file
@@ -59,6 +62,7 @@ letsStart <- function(srcFile,termType='xterm',nLines=50)
    # ksREPL functions will be used here for quick appreviations, in ks.R
    ksAbbrev('n','dbgNext()')
    ksAbbrev('s','dbgStep()')
+   ksAbbrev('a','dbgAttempt()')
 }
 
 ########  quick tests  #########
@@ -176,10 +180,27 @@ dbgStep <- function()
 
 ##### must change need to have user specify varToSave; we sense it here by
 ##### checking for '<-' in srcLines[linenum]
-dbgAttempt <- function(varToSave=NULL) 
+dbgAttempt <- function() 
 {
    focusRPane()
+
+   # get next line to be executed
    linenum <- dbgGetCurrLine()
+   nextToExec <- srcLines[linenum]
+
+   # if an assignment op, need to avoid it, say, being
+   # incremented twice, due to re-executing the statement
+   # find nonblank tokens, check whether this is an assignment op
+   tokens <- strsplit(nextToExec,split=' ')[[1]]
+   tokens <- tokens[nchar(tokens) > 0]
+   if (tokens[2] != '<-') {
+      assignOp <- FALSE
+      warning('nonassignment, check for doubled side effects')
+   } else {
+      assignOp <- TRUE
+      varToSave <- tokens[1]
+   }
+
    rcmd <- sprintf('res <- try(%s)',srcLines[linenum])
    sendToR(rcmd)
    sendToR("inherits(res,'try-error')")
@@ -187,11 +208,11 @@ dbgAttempt <- function(varToSave=NULL)
    if (dbs[length(dbs)] == '[1] TRUE') {
       print('exception encountered; note you are still in the browser')
    } else {
-      # if varToSave is assigned to, need to avoid it, say, being
-      # incremented twice, due to re-executing the statement
       dbgNext()
-      rcmd <- paste0(varToSave,' <- res')
-      sendToR(rcmd)
+      if (assignOp) {
+         rcmd <- paste0(varToSave,' <- res')
+         sendToR(rcmd)
+      }
    }
 }
 
