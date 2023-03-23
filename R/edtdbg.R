@@ -12,7 +12,7 @@
 #       debug() pauses execution of the program being debugged
 #    dbgsinklines: most-recently read in lines from dbgsink
 
-# GNU screen window name Rdebug
+# tmux screen window name Rdebug
 
 #############  LOTS OF DUPLICATE CODE INVOLVING  ##################
 #############  tmux OPS; FIX LATER, A BIT TRICKY ##################
@@ -63,6 +63,9 @@ letsStart <- function(srcFile,termType='xterm',nLines=50)
    ksAbbrev('n','dbgNext()')
    ksAbbrev('s','dbgStep()')
    ksAbbrev('a','dbgAttempt()')
+   ksAbbrev('cue','dbgContinUntilExcept ()')
+   ksAbbrev('Q','dbgQuitBrowser()')
+   ksAbbrev('rsf','dbgReadSrcFile()')
 }
 
 ########  quick tests  #########
@@ -109,6 +112,7 @@ dbgFtn <- function(fName)
 
 dbgReadSrcFile <- function() 
 {
+   focusRPane()
    scmd <- sprintf('tmux send-keys -t %s "source(\'%s\')" C-m',
          tmuxName,srcFile)
    system(scmd)
@@ -158,7 +162,7 @@ sendToR <- function(rcmd)
    
 }
 
-# browser 'n', 's' commands
+# browser 'n' command
 dbgNext <- function() 
 {
    focusRPane()
@@ -168,6 +172,7 @@ dbgNext <- function()
 
 }
 
+# browser 's' command
 dbgStep <- function() 
 {
    focusRPane()
@@ -203,17 +208,37 @@ dbgAttempt <- function()
 
    rcmd <- sprintf('res <- try(%s)',srcLines[linenum])
    sendToR(rcmd)
-   sendToR("inherits(res,'try-error')")
+   sendToR("is.numeric(res)")
    dbs <- readLines('dbgsink')
-   if (dbs[length(dbs)] == '[1] TRUE') {
+   gotExcept <- dbs[length(dbs)] == '[1] FALSE'
+   if (gotExcept) {
       print('exception encountered; note you are still in the browser')
    } else {
-      dbgNext()
       if (assignOp) {
          rcmd <- paste0(varToSave,' <- res')
          sendToR(rcmd)
       }
+      dbgNext()
    }
+
+   gotExcept  # result of try()
+}
+
+# keep doing dbgAttempt() until reach exception, or maxIters, whichever
+# comes first
+dbgContinUntilExcept <- function(maxIters=NULL) 
+{
+   focusRPane()
+   repeat {
+      err <- dbgAttempt()
+      if (err) break
+   }
+}
+
+dbgQuitBrowser <- function() 
+{
+   focusRPane()
+   sendToR('Q')
 }
 
 
