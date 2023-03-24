@@ -5,7 +5,7 @@
 #    srcFile: current source file being debugged
 #    srcLines: lines of srcFile
 #    tmuxName: name of original tmux window 
-
+#    recurRun: recurring trial run in a debugging session
 
 #    dbgdispon: boolean indicating whether 
 #       arguments and locals are to be displayed in R window, every time
@@ -66,6 +66,7 @@ letsStart <- function(srcFile,termType='xterm',nLines=50)
    ksAbbrev('cue','dbgContinUntilExcept ()')
    ksAbbrev('Q','dbgQuitBrowser()')
    ksAbbrev('rsf','dbgReadSrcFile()')
+   ksAbbrev('rn','dbgRun()')
 }
 
 ########  quick tests  #########
@@ -108,6 +109,15 @@ dbgFtn <- function(fName)
    scmd <- sprintf('tmux send-keys -t %s "debug(%s)" C-m',
       tmuxName,fName)
    system(scmd)
+}
+
+# typically in a debugging session, one will repeatedy make the same
+# call to initiate tracking down a bug; it will usually run the call in
+# the global variable recurRun, but the latter can be reset to newCall
+dbgRun <- function(newCall=NULL) 
+{
+   if (!is.null(newCall)) recurRun <<- newCall
+   sendToR(recurRun)
 }
 
 dbgReadSrcFile <- function() 
