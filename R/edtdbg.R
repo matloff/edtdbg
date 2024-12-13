@@ -18,7 +18,7 @@
 #############  tmux OPS; FIX LATER, A BIT TRICKY ##################
 
 # arguments: see globals above
-letsStart <- function(srcFile,termType='xterm',nLines=50)
+letsStart <- function(srcFile,termType='xterm',nLines=50,vim='vim')
 {
 
    # make sure no other tmux running (for now, even under a different
@@ -29,6 +29,7 @@ letsStart <- function(srcFile,termType='xterm',nLines=50)
    # set globals
    srcFile <<- srcFile
    tmuxName <<- 'Rdebug'
+   vim <<- vim
 
    # start tmux 
    cmd <- sprintf("%s -geometry 80x%s -e \'tmux new -s %s\' &",
@@ -41,8 +42,8 @@ letsStart <- function(srcFile,termType='xterm',nLines=50)
 
    # start Vim
    focusVimPane()
-   scmd <- sprintf('tmux send-keys -t %s "vim --servername VIM %s" C-m',
-      tmuxName,srcFile)
+   scmd <- sprintf('tmux send-keys -t %s %s " --servername VIM %s" C-m',
+      tmuxName,vim,srcFile)
    system(scmd)
    # set cursor line highlighting
    scmd <- sprintf('tmux send-keys -t %s ":set cursorline" C-m',tmuxName)
@@ -351,8 +352,8 @@ dbggotoline <- function(linenum,buffname) {
 }
 
 # send command to editor
-dbgsendeditcmd <- function(cmd) {
-   syscmd <- paste("vim --remote-send ",cmd," --servername ",vimserver,sep="")
+dbgsendeditcmd <- function(cmd,vim='vim') {
+   syscmd <- paste(vim," --remote-send ",cmd," --servername ",vimserver,sep="")
    system(syscmd)
 }
 
