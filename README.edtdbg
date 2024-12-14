@@ -1,0 +1,24 @@
+
+Your version of vim needs to have +clientserver enabled; check via "vim
+version". If it is not your default vim, you need to specify it in your
+call to letsStart().  On a Mac, you probably have 
+
+/Applications/MacVim.app/Contents/MacOS/Vim
+
+that has this feature.
+
+Run letsStart(). Should see a tall split window, with vim open to your
+source file in the top half, and R running in the bottom half. You can
+now run in the bottom half as usual, e.g.
+
+> debug(f)
+> f(5,2) #executes, and cursor goes to proper line in the vim window
+
+Or you can run "remotely" from the original R. This allows development
+and execution of custom debug commands not in browser(). The function
+dbgContinUntilExcept() is an example.
+
+Another one, to be added, would have the user give a list of variables
+whose values are to be displayed at every browser() pause. Still another
+would be to set up a watchpoint.
+
