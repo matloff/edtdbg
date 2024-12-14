@@ -59,7 +59,8 @@ letsStart <- function(srcFile,termType='xterm',nLines=50,vim='vim')
    system(scmd)
    dbgReadSrcFile()
    # get our globals here to the new R process
-   sendToR(paste('srcFile <- "',srcFile,'"',awp=''))
+   # sendToR(paste('srcFile <- "',srcFile,'"',awp=''))
+   sendToR(sprintf('srcFile <- "%s"',srcFile))
 
    # ksREPL functions will be used here for quick appreviations, in ks.R
    ksAbbrev('n','dbgNext()')
@@ -391,6 +392,16 @@ dbgfns <- function(ALL=FALSE) {
 dbgeditclose <- function() {
    sink()  # don't record output anymore
    unlink("dbgsink")  # remove the record file
+}
+
+# after making a change to the file in the vim window, save the file
+# there and have the child R process source the new version
+dbgSaveReload <- function() 
+{
+   focusVimPane()
+   sendTo_tmux(':w')
+   u <- sprintf("source('%s')",srcFile)
+   sendToR(u)
 }
 
 # execute the given R expression
