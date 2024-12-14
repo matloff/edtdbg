@@ -17,7 +17,7 @@
 #############  LOTS OF DUPLICATE CODE INVOLVING  ##################
 #############  tmux OPS; FIX LATER, A BIT TRICKY ##################
 
-# arguments: see globals above
+# arguments: see globals 
 letsStart <- function(srcFile,termType='xterm',nLines=50,vim='vim')
 {
 
@@ -52,13 +52,14 @@ letsStart <- function(srcFile,termType='xterm',nLines=50,vim='vim')
    scmd <- sprintf('tmux send-keys -t %s ":set number" C-m',tmuxName)
    system(scmd)
 
-
    # start R and read source file
    focusRPane()
    scmd <- sprintf('tmux send-keys -t %s R C-m',
       tmuxName)
    system(scmd)
    dbgReadSrcFile()
+   # get our globals here to the new R process
+   sendToR(paste('srcFile <- "',srcFile,'"',awp=''))
 
    # ksREPL functions will be used here for quick appreviations, in ks.R
    ksAbbrev('n','dbgNext()')
