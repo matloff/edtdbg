@@ -46,6 +46,10 @@ print(x[i])
 
 Still another would be to set up a watchpoint.
 
+Ending a session:
+
+   dbgQuitEdtdb()
+
 Misc:
 
 Toggle between panes via ctrl-b o.

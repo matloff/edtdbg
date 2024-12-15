@@ -18,9 +18,9 @@
 #############  tmux OPS; FIX LATER, A BIT TRICKY ##################
 
 # arguments: see globals 
-letsStart <- function(srcFile,termType='xterm',nLines=50,vim='vim')
-{
-
+letsStart <- function(srcFile,edtdbgSource,termType='xterm',
+   nLines=50,vim='vim')
+{   
    # make sure no other tmux running (for now, even under a different
    # name)
    chk <- system('tmux ls',intern=T)
@@ -59,8 +59,14 @@ letsStart <- function(srcFile,termType='xterm',nLines=50,vim='vim')
    system(scmd)
    dbgReadSrcFile()
    # get our globals here to the new R process
-   # sendToR(paste('srcFile <- "',srcFile,'"',awp=''))
-   sendToR(sprintf('srcFile <- "%s"',srcFile))
+   # sendToR(paste('srcFile <- "',srcFile,'"'))
+   sendToR(sprintf("srcFile <- \'%s\'",srcFile))
+   # source edtdbgcode
+   rcmd <- sprintf("source(\'%s\')",edtdbgSource)
+   sendToR(rcmd)
+
+   # initialize debugging entities, e.g. the 'tee'-constructed dbsink
+   sendToR(sprintf("dbsrci( \'%s\')",srcFile ))
 
    # ksREPL functions will be used here for quick appreviations, in ks.R
    ksAbbrev('n','dbgNext()')
@@ -107,7 +113,7 @@ dbgFtn <- function(fName)
    # what we need) in the current R session to be recorded in the file
    # dbgsink; see help page for sink()
    sendToR('sink(\'"dbgsink"\',split=T)')
-   dbgdispon <<- FALSE
+   dbgdispon <<- TRUE
    focusRPane()
    scmd <- sprintf('tmux send-keys -t %s "debug(%s)" C-m',
       tmuxName,fName)
@@ -254,159 +260,133 @@ dbgQuitBrowser <- function()
    sendToR('Q')
 }
 
+19
 
-#########################  not yet updated  ########################
-
-# invoked from editor, after the latter writes an 'n' or 'c' command to
-# debug()
-dbgstep <- function() {
-   i <- dbgfindline("debug at")
-   debugline <- dbgsinklines[i]
-   # extract line number, buffer name
-   linenumstart <- regexpr("#",debugline) + 1
-   buffname <- substr(debugline,10,linemanumstart-2)
-   colon <- regexpr(":",debugline)
-   linenum <- substr(debugline,linenumstart,colon-1)
-   dbggotoline(linenum,buffname)
-   if (dbgdispon) dbgdisp()
-}
-
-# finds the first line in dbgsink containing the given strings (assumed to
-# exist), starting at line startline and searching in the direction
-# drctn (+1 for forward, -1 for backward); strngs is a vector of strings
-dbgfindline <- function(strngs,startline=length(dbgsinklines),drctn=-1) {
-   dbgsinklines <<- readLines("dbgsink")
-   irange <- 
-      if (drctn == 1) {
-         startline:length(dbgsinklines)
-      } else startline:1
-   for (i in irange) {
-      thisline <- dbgsinklines[i]
-      # reg() checks whether strng is in thisline
-      reg <- function(strng) {
-         # note boolean return value
-         return(regexpr(strng,thisline) > 0)
-      }
-      # by using sapply() instead of lapply(), we get a vector and thus
-      # can use all()
-      regout <- sapply(strngs,reg)
-      if (all(regout))  # then this line is it!
-         return(i)
-   }
-}
-
-# toggles editor display of args, locals on/off
-dbgdisptog <- function() {
-   if (!dbgdispon) {
-      dbgdispon <<- TRUE
-      dbgdisp()
-   } else {
-      dbgdispon <<- FALSE
-   }
-}
-
-# displays current function's arguments and locals, if dbgdispon is TRUE
-dbgdisp <- function() {
-   if (dbgdispon && sys.nframe() > 2) 
-      dbgdisplsenv(3)
-}
-
-# displays calling function's arguments and locals, and moves editor
-# cursor to the line of the call; relies on the editor having remotely
-# invoked "where" in the R window
-dbgdisppar <- function() {
-   # the first line of the "where" output with "at" reports the call line
-   i <- dbgfindline("where output:")
-   ii <- dbgfindline("at",startline=i+1,drctn=1)
-   whereatline <- dbgsinklines[ii]
-   linenumstart <- regexpr("#",whereatline) + 1
-   buffname <- substr(whereatline,12,linenumstart-2)
-   colon <- regexpr(":",whereatline)
-   linenum <- substr(whereatline,linenumstart,colon-1)
-   dbggotoline(linenum,buffname)
-   dbgdisplsenv(3)
-}
-
-# displays globals
-dbgdispglb <- function() {
-   dbgdisplsenv(sys.nframe()+1)
-}
-
-# closer, but still needs work
-dbgdisplsenv <- function(levelup) {
-   vars <- ls(envir=parent.frame(n=levelup))
-   for (vrg in vars) {
-      ## if (!is.function(vrg) && !identical(vrg,dbgsinklines)) {
-      if (!is.function(vrg) && !inherits(vrg,'ksr')) {
-         vrgVal <- get(vrg,pos=parent.frame(n=levelup))
-         toPrint <- sprintf('%s: %s',vrg,vrgVal)
-         print(toPrint)
-      }
-   }
-}
-
-# send cursor move command to editor
-dbggotoline <- function(linenum,buffname) {
-   # assumes file is in current directory for R and the editor, and is
-   # not given as a full path name or as a tmp file
-   cmd <- paste("':b ",buffname,"<cr>",linenum,"G'",sep="")
-   dbgsendeditcmd(cmd)
-}
-
-# send command to editor
-dbgsendeditcmd <- function(cmd,vim='vim') {
-   syscmd <- paste(vim," --remote-send ",cmd," --servername ",vimserver,sep="")
-   system(syscmd)
-}
-
-# if not ALL, then user is presented with a menu for toggling 
-# debug/undebug status of all functions; otherwise all functions are set
-# to debug status
-dbgfns <- function(ALL=FALSE) {
-   lsout <- ls(env=globalenv())
-   fns <- NULL
-   for (lselt in lsout) {
-      lse <- get(lselt)
-      if (is.function(lse) && regexpr("dbg",lselt) != 1) {
-         if (!ALL) {
-            dbg <- if (do.call(isdebugged,list(lselt))) "y" else "n"
-            fns <- rbind(fns,data.frame(fn=lselt,debugging=dbg,
-               stringsAsFactors=F))
-         } else {
-            debug(lse)
-         }
-      }
-   }
-   if (ALL) return()
-   print(fns)  # show user current debug/undebug state for each ftn
-   kbdin <- readline(prompt="enter number(s) of fns you wish to toggle dbg: ")
-   tognums <- as.integer(strsplit(kbdin,split=" ")[[1]])
-   for (j in tognums) {
-      if (fns[j,2] == "n") 
-         debug(fns[j,1]) 
-      else 
-         undebug(fns[j,1]) 
-   }
-}
-
-dbgeditclose <- function() {
-   sink()  # don't record output anymore
-   unlink("dbgsink")  # remove the record file
-}
-
-# after making a change to the file in the vim window, save the file
-# there and have the child R process source the new version
-dbgSaveReload <- function() 
+dbgQuitEdtdb <- function() 
 {
-   focusVimPane()
-   sendTo_tmux(':w')
-   u <- sprintf("source('%s')",srcFile)
-   sendToR(u)
+   system(paste('tmux kill-session -t',tmuxName))
 }
 
-# execute the given R expression
-evalr <- function(toexec) {
-   eval(parse(text=toexec),parent.frame())
+
+# *****************  general debugging functions  ********************
+
+# These can be used independently of edtdbg, within the R Console itself.
+
+# use during development/debugging of the given package, so that new
+# version of code is used; pkg is quoted package name
+reloadPkg <- function(pkg) 
+{
+   cmd <- paste0('detach("package:',pkg,'"',',unload=TRUE)')
+   evalr(cmd)
+   cmd <- paste0('library(',pkg,')')
+   evalr(cmd)
 }
 
+# for debugging exec errors; set this once, then call debugger() each
+# time get an exec error
+odf <- function() options(error=dump.frames)
+
+# browser abbrevs
+dsc <- function() sys.call(1) 
+
+# do debugonce(), and easy repeat if want a second time (or more times)
+
+db1 <- function(f) 
+{
+   fname <- as.character(match.call()$f)
+   cmd <- paste0('savef <<- "',fname,'"')
+   eval(parse(text=cmd))
+   cmd <- paste0('debugonce(',fname,')')
+   eval(parse(text=cmd))
+}
+
+dba <- function() 
+{
+   cmd <- paste0('debugonce(',savef,')')
+   eval(parse(text=cmd))
+}
+
+# example
+# > g <- function(x) {x <- x+1; x^2}
+# > db1(g)
+# > g(5)
+# debugging in: g(5)
+# debug at #1: {
+#     x <- x + 1
+#     x^2
+# }
+# Browse[2]> c
+# exiting from: g(5)
+# [1] 36
+# > dba()
+# > g(3)
+# debugging in: g(3)
+# debug at #1: {
+#     x <- x + 1
+#     x^2
+# }
+# Browse[2]> Q
+
+######  these require initialization ######
+
+srcname <<- NULL
+
+# sources the given .R file, sets up debugging per below; 
+# sets dbf function to be debugged; sets
+# globals: 
+#   'srcname', the currently-sourced file (NULL repeats last one)
+#   'applines', the lines in 'srcname'
+# creates the file 'debugrecord'
+dbsrci <- function(src=srcname,dbf=NULL) 
+{  require(cmdlinetools)   
+   srcname <<- src
+   srci(src)
+   if (!is.null(dbf)) debug(get(dbf))
+}
+
+# find line number at which the debugger currently stands
+dbcurrLineNum <- function() {
+   rec <- readLines("debugrecord")
+   target <- "debug at"
+   for (i in length(rec):1) {
+      reci <- rec[i]
+      ge <- gregexpr(target,reci)[[1]]
+      if (ge == 1) {
+         numbersign <- gregexpr("#",reci)[[1]][1]
+         if (numbersign < 0) continue
+         linenumstart <- numbersign + 1
+         tmp <- substr(reci,linenumstart,nchar(reci))
+         colon <- gregexpr(":",tmp)[[1]][1]
+         return(as.integer(substr(tmp,1,colon-1)))
+      }
+   }
+   print("line number not found")
+}
+
+dbcurrLine <- function() 
+{
+   lineNum <- dbcurrLineNum()
+   applines[lineNum]
+}
+
+# print the lines in app from m to n; if one of them is null, print all within
+# 5 lines in that direction
+dbl <- function(m=NULL,n=NULL) {
+   cl <- dbcurr()
+   if (is.null(m)) {
+      m <- max(1,cl-5)
+   }
+   if (is.null(n)) {
+      n <- min(length(applines),cl+5)
+   }
+   for (i in m:n) {
+      cat(i,applines[i],"\n",sep=" ")
+   }
+}
+
+# set breakpoint at line linenum; assumes for convience sourceFileName 
+# has been declared globally; to unset, use clear=TRUE
+dbb <- function(linenum,clear=FALSE) {
+   setBreakpoint(sourceFileName,linenum)
+}
 
