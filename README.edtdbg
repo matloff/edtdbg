@@ -25,9 +25,11 @@ source file in the top half, and R running in the bottom half (the
 
 Running the session:
 
+MUST call dbgFtn(f) rather than typing 'debug(f)' in child R process, as
+this is needed to set up the dbgsink file.
+
 You can now run in the bottom half as usual, e.g.
 
-> debug(f)
 > f(5,2) #executes, and cursor goes to proper line in the vim window
 
 Or you can run "remotely" from the original R. This allows development
