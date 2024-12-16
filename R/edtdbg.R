@@ -28,6 +28,7 @@ letsStart <- function(srcFile,edtdbgSource,termType='xterm',
 
    # set globals
    srcFile <<- srcFile
+   sourceFileName <<- srcFile
    tmuxName <<- 'Rdebug'
    vim <<- vim
 
@@ -59,8 +60,8 @@ letsStart <- function(srcFile,edtdbgSource,termType='xterm',
    system(scmd)
    dbgReadSrcFile()
    # get our globals here to the new R process
-   # sendToR(paste('srcFile <- "',srcFile,'"'))
    sendToR(sprintf("srcFile <- \'%s\'",srcFile))
+   sendToR(sprintf("sourceFileName <- \'%s\'",sourceFileName))
    # source edtdbgcode
    rcmd <- sprintf("source(\'%s\')",edtdbgSource)
    sendToR(rcmd)
