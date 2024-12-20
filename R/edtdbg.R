@@ -14,6 +14,18 @@
 
 # tmux screen window name Rdebug
 
+# arguments:
+# 
+#   srcFile: file to be debugged
+#   edtdbgSource: file containing this code
+#   termType: for now, only 'xterm'; Mac 'Terminal' may work
+#   nLines: number of lines in tmux screen, src + R
+#   vim: on Mac, need client/server version, maybe
+#      /Applications/MacVim.app/Contents/MacOS/Vim
+
+# initialize by calling letsStart; then e.g. type 'debug(f)' into child R
+# console, then 'f(whatever)'
+
 #############  LOTS OF DUPLICATE CODE INVOLVING  ##################
 #############  tmux OPS; FIX LATER, A BIT TRICKY ##################
 
@@ -150,7 +162,9 @@ vimGoToLine <- function(lineNum)
 
 dbgGetCurrLine <- function() 
 {
-   i <- dbgfindline("debug at")
+   ### i <- dbgfindline("debug at")
+   dbgsinklines <<- readLines('dbgsink')
+   i <- dbcurrLineNum()
    debugline <- dbgsinklines[i]
    linenumstart <- regexpr("#",debugline) + 1
    colon <- regexpr(":",debugline)
@@ -168,7 +182,8 @@ vimUpdateCursor <- function()
    linenum <- dbgGetCurrLine()
    ## dbggotoline(linenum,buffname)
    vimGoToLine(linenum)
-   if (dbgdispon) dbgdisp()
+   ### if (dbgdispon) dbgdisp()
+   ### dbgdisp()
 
 }
 
