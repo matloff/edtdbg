@@ -1,3 +1,11 @@
+
+# TODO:
+
+#    need to have dbgFtn with no arg mean to repear the function specifid 
+#    at the previous call 
+# 
+#    need to add optional specifying of LHS in dbgAttempt
+
 # global variables:
 
 #    cr: Enter key 
@@ -12,22 +20,34 @@
 #       debug() pauses execution of the program being debugged
 #    dbgsinklines: most-recently read in lines from dbgsink
 
-# tmux screen window name Rdebug
+# tmux screen window name is 'Rdebug'
 
 # arguments:
 # 
-#   srcFile: file to be debugged
-#   edtdbgSource: file containing this code
+#   srcFile: location of file to be debugged
+#   edtdbgSource: file containing this edtdbg code
 #   termType: for now, only 'xterm'; Mac 'Terminal' may work
 #   nLines: number of lines in tmux screen, src + R
 #   vim: on Mac, need client/server version, maybe
 #      /Applications/MacVim.app/Contents/MacOS/Vim
 
-# initialize by calling letsStart; then e.g. type 'debug(f)' into child R
-# console, then 'f(whatever)'
+# overall operation:
 
-#############  LOTS OF DUPLICATE CODE INVOLVING  ##################
-#############  tmux OPS; FIX LATER, A BIT TRICKY ##################
+#   1. edtdbg creates a new terminal window 
+#   2. edtdbg atarts tmux in the new window
+#   3. edtdbg splits to 2 tmux panes
+#   4. edtdbg runs vim on the given file, in one pane
+#   5. edtdbg starts R in the other pane
+
+# user operation:
+
+#    initialize by calling letsStart
+#    then e.g. type 'dbgFtn(f)' into parent R, type f(whatever) INTO
+#       CHILD R (note this!) to begin the debugging
+#    then can issues commands from either parent or child R
+
+# naming: functions beginning with 'dbg' are new here; ones beginning
+# with 'db' are from debugging macros from my old NM.Rprofile
 
 # arguments: see globals 
 letsStart <- function(srcFile,edtdbgSource,termType='xterm',
@@ -45,6 +65,12 @@ letsStart <- function(srcFile,edtdbgSource,termType='xterm',
    vim <<- vim
 
    # start tmux 
+
+   # for Mac Terminal, may need to create window first, then run tmux in
+   # it; maybe iTerm2; otherwise, Mac users may have to do this manually 
+
+   # new window will be created, with tmux running a session with the
+   # title given in tmuxName
    cmd <- sprintf("%s -geometry 80x%s -e \'tmux new -s %s\' &",
       termType,nLines,tmuxName)
    system(cmd)
@@ -53,7 +79,7 @@ letsStart <- function(srcFile,edtdbgSource,termType='xterm',
    # split into upper, lower panes
    system(sprintf('tmux split -t %s',tmuxName))
 
-   # start Vim
+   # start Vim, with servername 'VIM'
    focusVimPane()
    scmd <- sprintf('tmux send-keys -t %s %s " --servername VIM %s" C-m',
       tmuxName,vim,srcFile)
@@ -65,30 +91,25 @@ letsStart <- function(srcFile,edtdbgSource,termType='xterm',
    scmd <- sprintf('tmux send-keys -t %s ":set number" C-m',tmuxName)
    system(scmd)
 
-   # start R and read source file
+   # start child R and read source file to be debugged
    focusRPane()
    scmd <- sprintf('tmux send-keys -t %s R C-m',
       tmuxName)
    system(scmd)
    dbgReadSrcFile()
-   # get our globals here to the new R process
+   # get our globals here to the child R process
    sendToR(sprintf("srcFile <- \'%s\'",srcFile))
    sendToR(sprintf("sourceFileName <- \'%s\'",sourceFileName))
-   # source edtdbgcode
+   # have child R source edtdbg code
    rcmd <- sprintf("source(\'%s\')",edtdbgSource)
    sendToR(rcmd)
 
-   # initialize debugging entities, e.g. the 'tee'-constructed dbsink
-   sendToR(sprintf("dbsrci( \'%s\')",srcFile ))
+   # initialize debugging entities, e.g. the 'tee'-constructed dbsink;
+   # run dbsrci
+   ### seeing if can be deleted
+   ### sendToR(sprintf("dbsrci( \'%s\')",srcFile ))
 
-   # ksREPL functions will be used here for quick appreviations, in ks.R
-   ksAbbrev('n','dbgNext()')
-   ksAbbrev('s','dbgStep()')
-   ksAbbrev('a','dbgAttempt()')
-   ksAbbrev('cue','dbgContinUntilExcept ()')
-   ksAbbrev('Q','dbgQuitBrowser()')
-   ksAbbrev('rsf','dbgReadSrcFile()')
-   ksAbbrev('rn','dbgRun()')
+   ksAbbrevs()
 }
 
 ########  quick tests  #########
@@ -122,6 +143,7 @@ focusRPane <- function()
 # start debug of function f
 dbgFtn <- function(fName) 
 {
+   if (!is.character(fName)) stop('need the function name, not the function')
    # the following will arrange for a copy of most output (including
    # what we need) in the current R session to be recorded in the file
    # dbgsink; see help page for sink()
@@ -142,6 +164,7 @@ dbgRun <- function(newCall=NULL)
    sendToR(recurRun)
 }
 
+# have child R read file to be debugged
 dbgReadSrcFile <- function() 
 {
    focusRPane()
@@ -164,12 +187,13 @@ dbgGetCurrLine <- function()
 {
    ### i <- dbgfindline("debug at")
    dbgsinklines <<- readLines('dbgsink')
-   i <- dbcurrLineNum()
-   debugline <- dbgsinklines[i]
-   linenumstart <- regexpr("#",debugline) + 1
-   colon <- regexpr(":",debugline)
-   linenum <- substr(debugline,linenumstart,colon-1)
-   as.numeric(linenum)
+   ### i <- dbCurrLineNum()
+   dbCurrLineNum()
+###    debugline <- dbgsinklines[i]
+###    linenumstart <- regexpr("#",debugline) + 1
+###    colon <- regexpr(":",debugline)
+###    linenum <- substr(debugline,linenumstart,colon-1)
+###    as.numeric(linenum)
 }
 
 vimUpdateCursor <- function() 
@@ -216,10 +240,23 @@ dbgStep <- function()
    vimUpdateCursor() 
 }
 
-# entirely new idea, do 'a' ("attempt") instead of 'n'
+# set breakpoint at line linenum; assumes for convience sourceFileName 
+# has been declared globally; to unset, use clear=TRUE
+# replace by dbg* ftn
+dbgSetBreak <- function(linenum,clear=FALSE) {
+   setBreakpoint(sourceFileName,linenum)
+}
 
-##### must change need to have user specify varToSave; we sense it here by
+# entirely new idea, do 'a' ("attempt") instead of 'n'; a "sneak peek"
+# at the near future; execute "offline"; won't affect program flow if
+# now side effects
+
+##### must change need to have user specify varToSave; don't want to
+#### change the LHS variable; we sense it here by
 ##### checking for '<-' in srcLines[linenum]
+
+# see also dbgContinUntilExcept below, which uses this ftn
+
 dbgAttempt <- function() 
 {
    focusRPane()
@@ -260,7 +297,8 @@ dbgAttempt <- function()
 }
 
 # keep doing dbgAttempt() until reach exception, or maxIters, whichever
-# comes first
+# comes first; REALLY IMPORTANT, since many apps seem not to trigger a
+# usable tracekack
 dbgContinUntilExcept <- function(maxIters=NULL) 
 {
    focusRPane()
@@ -278,9 +316,27 @@ dbgQuitBrowser <- function()
 
 19
 
-dbgQuitEdtdb <- function() 
+dbgQuitEdtdbg <- function() 
 {
+   system('rm dbgsink')
    system(paste('tmux kill-session -t',tmuxName))
+}
+
+# ksREPL; from github.com/matloff/ksREPL; one-letter abbrevations for
+# user commands
+ksAbbrevs <- function() 
+{
+   make_ll()  # init
+   ksAbbrev('n','dbgNext()')
+   ksAbbrev('s','dbgStep()')
+   ksAbbrev('a','dbgAttempt()')
+   ksAbbrev('cue','dbgContinUntilExcept ()')
+   ksAbbrev('Q','dbgQuitBrowser()')
+   ksAbbrev('qdbg','dbgQuitEdtdbg()')
+   ksAbbrev('rsf','dbgReadSrcFile()')
+   ksAbbrev('rn','dbgRun()')
+   ksAbbrev('vp','focusVimPane()')
+   ksAbbrev('rp','focusRPane()')
 }
 
 
@@ -303,7 +359,7 @@ reloadPkg <- function(pkg)
 odf <- function() options(error=dump.frames)
 
 # browser abbrevs
-dsc <- function() sys.call(1) 
+### dsc <- function() sys.call(1) 
 
 # do debugonce(), and easy repeat if want a second time (or more times)
 
@@ -348,22 +404,27 @@ dba <- function()
 srcname <<- NULL
 
 # sources the given .R file, sets up debugging per below; 
-# sets dbf function to be debugged; sets
+# optionally runs debug(the dbf file)
+#   sets dbf function to be debugged; sets
 # globals: 
 #   'srcname', the currently-sourced file (NULL repeats last one)
 #   'applines', the lines in 'srcname'
 # creates the file 'debugrecord'
-dbsrci <- function(src=srcname,dbf=NULL) 
-{  require(cmdlinetools)   
-   srcname <<- src
-   srci(src)
-   if (!is.null(dbf)) debug(get(dbf))
-}
+
+# eliminating 
+### dbsrci <- function(src=srcname,dbf=NULL) 
+### {  require(cmdlinetools)   
+###    srcname <<- src
+###    srci(src)
+###    if (!is.null(dbf)) debug(get(dbf))
+### }
 
 # find line number at which the debugger currently stands
-dbcurrLineNum <- function() {
-   rec <- readLines("debugrecord")
+dbCurrLineNum <- function() {
+   ### rec <- readLines("debugrecord")
+   rec <- readLines("dbgsink")
    target <- "debug at"
+   # search backwards to make sure get the latest debug pause
    for (i in length(rec):1) {
       reci <- rec[i]
       ge <- gregexpr(target,reci)[[1]]
@@ -379,30 +440,30 @@ dbcurrLineNum <- function() {
    print("line number not found")
 }
 
-dbcurrLine <- function() 
-{
-   lineNum <- dbcurrLineNum()
-   applines[lineNum]
-}
+### dbcurrLine <- function() 
+### {
+###    lineNum <- dbCurrLineNum()
+###    applines[lineNum]
+### }
 
 # print the lines in app from m to n; if one of them is null, print all within
 # 5 lines in that direction
-dbl <- function(m=NULL,n=NULL) {
-   cl <- dbcurr()
-   if (is.null(m)) {
-      m <- max(1,cl-5)
-   }
-   if (is.null(n)) {
-      n <- min(length(applines),cl+5)
-   }
-   for (i in m:n) {
-      cat(i,applines[i],"\n",sep=" ")
-   }
-}
+### dbl <- function(m=NULL,n=NULL) {
+###    cl <- dbcurr()
+###    if (is.null(m)) {
+###       m <- max(1,cl-5)
+###    }
+###    if (is.null(n)) {
+###       n <- min(length(applines),cl+5)
+###    }
+###    for (i in m:n) {
+###       cat(i,applines[i],"\n",sep=" ")
+###    }
 
-# set breakpoint at line linenum; assumes for convience sourceFileName 
-# has been declared globally; to unset, use clear=TRUE
-dbb <- function(linenum,clear=FALSE) {
-   setBreakpoint(sourceFileName,linenum)
-}
+### # set breakpoint at line linenum; assumes for convience sourceFileName 
+### # has been declared globally; to unset, use clear=TRUE
+# replace by dbg* ftn
+### dbb <- function(linenum,clear=FALSE) {
+###    setBreakpoint(sourceFileName,linenum)
+### }
 
