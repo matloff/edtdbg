@@ -51,7 +51,7 @@
 
 # arguments: see globals 
 letsStart <- function(srcFile,edtdbgSource,termType='xterm',
-   nLines=50,vim='vim')
+   nLines=50,fontSize=NULL,vim='vim')
 {   
    # make sure no other tmux running (for now, even under a different
    # name)
@@ -71,8 +71,14 @@ letsStart <- function(srcFile,edtdbgSource,termType='xterm',
 
    # new window will be created, with tmux running a session with the
    # title given in tmuxName
-   cmd <- sprintf("%s -geometry 80x%s -e \'tmux new -s %s\' &",
-      termType,nLines,tmuxName)
+   if (is.null(fontSize)) {
+      cmd <- sprintf("%s -geometry 80x%s -e \'tmux new -s %s\' &",
+         termType,nLines,tmuxName)
+   } else {
+      cmd <- 
+         sprintf("%s -geometry 80x%s -fa 'Monospace' -fs %s -e \'tmux new -s %s\' &",
+         termType,nLines,fontSize,tmuxName)
+   }
    system(cmd)
    Sys.sleep(1)
 
